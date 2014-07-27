@@ -1,0 +1,138 @@
+
+  This is out of date in places.  I haven't investigated which places.
+
+  Note that there are multiple bug trackers, listed here in what mca
+  considers the order of preference,
+
+    http://sourceforge.net/tracker/?group_id=2653&atid=102653
+    http://rt.cpan.org/NoAuth/Bugs.html?Dist=Test-Unit
+    http://bugs.debian.org/libtest-unit-perl
+
+  Also note use of ChangeLog instead of Changes, and parts of doc/TODO
+
+-------------------------------------------------
+The procedure should be:
+-------------------------------------------------
+
+1. Ensure files are committed		git status
+
+2. Update ChangeLog			git log --stat --reverse  v0.25..HEAD
+
+3. Ensure working copy is clean		git clean -xdn
+   Change last n to f to delete them!
+
+4. Tag it, if it is a full release	git tag -m 'mumble is out' v0.mumble
+
+5. Fresh Makefile			perl -w Makefile.PL
+
+   -w : but if there were warnings you'd like to see them yes?
+
+   This can make new dev tags, iff not on a release tag.
+
+   The insistence on clean working copy might be annoying, but is
+   probably necessary to avoid mistakes.
+
+6. Check the manifest			make distcheck
+
+   nb. exit code is not indicative of success, read the output.  If
+   files are "Not in MANIFEST",
+
+   Add to MANIFEST.SKIP ?
+   Update the manifest			make manifest
+
+   Check & commit differences
+   Start again
+
+7. Test the distribution		make disttest
+
+XXX: why does it make noise and complain that (most files in the manifest) are missing, before proceeding to build & test them?
+
+   This should cover all the tests and the examples; but examples are
+   broken (0.25).
+
+8. Ship it				make tardist
+
+   Unpack and test it one more time!
+
+   Upload to Sourceforge FRS
+   Upload to PAUSE
+
+   Do tags need pushing?		git push -n
+   Delete some dev tags?
+   Push the relevant tag(s)		git push
+
+9. Delete recent dev tags		dist-tools/devtag-bye -d -f
+
+10. Check CPAN knows you own all modules in the dist.
+	curl -s http://www.cpan.org/modules/06perms.txt.gz | zcat | grep -E '^$|: |^Test::Unit' | less
+
+    Existing modules should be OK (but are not, as of 2011-04).
+    New modules get first-come registration after upload.
+
+
+-------------------------------------------------
+Explanation on version number synchronization:
+-------------------------------------------------
+
+The CPAN module will decide to upgrade a module when the version number
+of the module installed locally is less than the highest version number
+of any version of the module it can find on CPAN. It will find out the
+distribution file this module is in, and then install this distribution
+file. This can lead to surprising results for distribution files that
+contain multiple modules.
+
+Take this common situation: package Foo-0.22.tar.gz contains modules
+Foo, Foo::Bar, and Foo::Baz. Now, something changes in Foo::Bar, and
+Foo::Bar gets a new version number. The module author happily uploads
+Foo-0.23.tar.gz to CPAN.
+
+Now, will the CPAN module use Foo-0.23.tar.gz to upgrade package Foo if you
+tell it "install Foo"? No. CPAN will look at the version number for Foo,
+determine it has not changed compared to the locally installed version,
+and do nothing. You have to tell it "install Foo::Bar" to get the new
+distribution file, which is bad, since nobody will know she has to
+do that.
+
+The solution is to make sure any time a distribution file gets upgraded,
+its top level module should get a new, higher version number.  This way,
+things will work like people expect them to work.
+
+Please note that any module on CPAN should have a version number, even
+if it is contained in a package with many other modules. This ensures
+that people can require a certain version of any module in a given
+distribution file.
+
+
+-------------------------------------------------
+References
+-------------------------------------------------
+
+Date: Wed, 21 Feb 2001 14:06:35 +0000
+From: Matthew Astley <mca-gdl@users.sourceforge.net>
+To: perlunit-devel@lists.sourceforge.net
+Subject: Re: [Perlunit-devel] CVS tags / release procedure
+Message-ID: <20010221140635.P25661@grantadesign.com>
+References: <20010220215614.H25661@grantadesign.com> <000901c09bf0$a1641140$9f0010ac@aixonix.de> <20010221130709.A9412@thelonious.new.ox.ac.uk> <20010220215614.H25661@grantadesign.com> <000901c09bf0$a1641140$9f0010ac@aixonix.de>
+In-Reply-To: <000901c09bf0$a1641140$9f0010ac@aixonix.de>; from lemburg@aixonix.de on Wed, Feb 21, 2001 at 11:25:36AM +0100
+
+[SNIP, old and CVS-related]
+
+    - Changes (section for release at the top)
+[SNIP]
+    - README (Version numbers on installation commands .. surely we
+      could put something generic in here?)
+[SNIP]
+
+> > I'm left thinking that it could be handy to tag files as development
+> > only, so for example I could drop my GenericTests.pm into place but
+> > tag it as mine/not for release. It's rather hard for someone to commit
+> > on a patch, I think?
+
+So we've a solution to this separate problem, but perhaps we should
+hold off the feature creep until we've got more tests in?
+
+(any bright ideas for ways to tie the docs to the tests so the can
+fail a test when we tweak things? I'm just about to digress hugely so
+I'll save it for another post)
+
+[SNIP]
